@@ -8,6 +8,12 @@ use core::panic::PanicInfo;
 use blog_os::println;
 use bootloader::{BootInfo, entry_point};
 
+
+extern crate alloc;
+use alloc::boxed::Box;
+
+
+
 entry_point!(kernel_main); // Type checks the start function so that a comilation error occurs when we use a wrong function signature, for example by adding an argument or changing the argument type 
 //no longer need the no_mangle or the extern "C" anymore because kernel_main defines the start point at a lower level where this is implied
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
@@ -17,7 +23,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use blog_os::memory;
     use x86_64::{structures::paging::Page, VirtAddr};
 
-    use blog_os::memory::BootFrameAllocator;
+    use blog_os::memory::BootInfoFrameAllocator;
    
     println!("Hello World{}", "!");
 
@@ -40,12 +46,17 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
     unsafe { page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e)};
 
+
+    let x = Box::new(41);
+
      
     
     #[cfg(test)] //testing main for cargo test test_main();
     test_main();
     println!("No crash!");
     blog_os::hlt_loop();
+
+    
 }
 
 

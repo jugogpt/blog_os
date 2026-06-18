@@ -7,7 +7,7 @@ use x86_64::{
 
 
 
-use bootloader::bootinfo::MemoryMap;
+use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
 
 
 //returns a mutable reference to the active level 4 table.
@@ -131,10 +131,8 @@ pub struct EmptyFrameAllocator;
 //in order to implement a trait to a struct 
 //in order to map pages that don't have a level 1 page table yet, we need to createe a proper FrameAllocator --> Problem: how do we know which frames are unused and how much physical memory is avaiable???
 unsafe impl FrameAllocator<Size4KiB> for EmptyFrameAllocator {
-    fn allocate_frame(&mut self) -> Option<PhysFrame> {
-        let frame = self.usable_frames().nth(self.next);
-        self.next += 1;
-        frame
+    fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+        None
     }
 }
 
@@ -150,7 +148,7 @@ pub struct BootInfoFrameAllocator {
 impl BootInfoFrameAllocator {
     //need to add an auxillary method that converts the memory map into an iterator of usable framezs 
 
-    fn usable_frames(&self) -> impl Iterator<Item = PhysFrame> { //this is supposed to return some struct that implements Iterator of the parameter Item which is the PhysFrame address
+    fn usable_frames(&self) -> impl Iterator<Item = PhysFrame<Size4KiB>> {
         //get usable regions from memory map
         let regions = self.memory_map.iter();
         let usable_regions = regions.filter(|r| r.region_type == MemoryRegionType::Usable);
@@ -171,9 +169,17 @@ impl BootInfoFrameAllocator {
     //memory map is valid the main requirement is that all frames that are makred as USABLE in it are really unused
 
     pub unsafe fn init(memory_map: &'static MemoryMap) -> Self {
-        BootInfoFrameAllocator { //pub unsafe (bc we actually do not know if the memory map is valid) fn init instantiates with the given memory map and default page of 0, which will be incrase for every frame allocation to acoid returng the same frame twice
+        BootInfoFrameAllocator {
             memory_map,
             next: 0,
         }
     }
-}   
+}
+
+unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
+    fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+        let frame = self.usable_frames().nth(self.next);
+        self.next += 1;
+        frame
+    }
+}
