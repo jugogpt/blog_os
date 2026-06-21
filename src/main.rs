@@ -12,7 +12,7 @@ use bootloader::{BootInfo, entry_point};
 extern crate alloc;
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 
-
+use blog_os::task::{Task, simple_executor::SimpleExecutor};
 
 entry_point!(kernel_main); // Type checks the start function so that a comilation error occurs when we use a wrong function signature, for example by adding an argument or changing the argument type 
 //no longer need the no_mangle or the extern "C" anymore because kernel_main defines the start point at a lower level where this is implied
@@ -47,7 +47,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
      println!("reference count is {} now", Rc::strong_count(&cloned_reference));
 
 
-    
+     let mut executor = SimpleExecutor::new();
+     executor.spawn(Task::new(example_task()));
+     executor.run();
+
     #[cfg(test)] //testing main for cargo test test_main();
     test_main();
     println!("No crash!");
@@ -57,7 +60,16 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 }
 
 
-//bootinfo passes the BootInfo struct that contains the physical memory offset value and the map_physical_memory (i.e. the amount of physcial memory NOT being used)
+
+async fn async_number() -> u32 {
+    42
+}
+
+async fn example_task() {
+    let number = async_number().await;
+    println!("async number: {}", number);
+}
+
 /// This function is called on panic.
 #[cfg(not(test))]
 #[panic_handler]
@@ -71,21 +83,6 @@ fn panic(info: &PanicInfo) -> ! {
 fn panic(info: &PanicInfo) -> ! {
     blog_os::test_panic_handler(info)
 }
-
-
-async fn async_number() -> u32 { //async_number is a async fn so the compiler transforms it into a statemachine that implements the Future trait.
-    //returns Poll::Ready(42)
-    42
-}
-
-async fn example_task() {
-    let number = async_number().await;
-    println!("async number: {}", number);
-}
-
-
-
-
 
 /*
 
